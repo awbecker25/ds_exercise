@@ -1,0 +1,71 @@
+
+```{r}
+library(tidyverse)
+library(h2o)
+library(stringi)
+```
+
+```{r}
+gene_df <- read_csv("data/gene data.csv")
+```
+
+```{r}
+str(gene_df)
+```
+
+```{r}
+summary(gene_df)
+```
+
+```{r}
+sum(is.na(gene_df))
+```
+
+```{r}
+h2o.init()
+```
+
+
+```{r}
+vec1 <- "kitten"
+vec2 <- "Kitten"
+```
+```{r}
+get_mod_hamming <- function(string1, string2) {
+    if ((class(string1) != "character") | (class(string2) != "character")) {
+        return(print("Please pass two character arguments"))
+    } else if (length(string1) != 1 | length(string2) != 1) {
+        return(print("Please pass two single-element vectors"))
+    } else {
+        if (nchar(string1) != nchar(string2)) {
+        return(print("Please pass two character strings of equal length"))
+    } else if (string1 == string2) {
+        return(print(paste("The modified Hamming distance",
+                           "between these two strings is", 0)))
+    } else if (string1 != string2) {
+        string_mat <- cbind(unlist(strsplit(string1, split = "")), unlist(strsplit(string2, split = "")))
+        dist <- 0
+        for (i in seq_len(nrow(string_mat))) {
+            if (string_mat[i, 1] == string_mat[i, 2]) {
+                dist <- dist + 0
+            }
+            if ((i != 1) & ((toupper(string_mat[i, 1]) == toupper(string_mat[i, 2])) & (string_mat[i, 1] %in% LETTERS != string_mat[i, 2] %in% LETTERS)) |
+                           ((toupper(string_mat[i, 1]) != toupper(string_mat[i, 2])) & (string_mat[i, 1] %in% LETTERS != string_mat[i, 2] %in% LETTERS))) {
+                dist <- dist + 0.5
+            }
+            if ((i == 1) & (toupper(string_mat[i, 1]) == toupper(string_mat[i, 2]))) {
+                dist <- dist + 0
+            }
+            if (toupper(string_mat[i, 1]) != toupper(string_mat[i, 2])) {
+                dist <- dist + 1
+            }
+        }
+        return(dist)
+        }
+    }
+}
+```
+
+```{r}
+get_mod_hamming("cat", c("cat", "cat"))
+```
