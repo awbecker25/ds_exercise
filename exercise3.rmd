@@ -1,0 +1,51 @@
+---
+title: "Exercise 3"
+author: "Alec Becker"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Using a dataset of text descriptions for patent drawings, this script aims to identify the total number of descriptions matching two string patterns.
+```{r}
+library(stringr)
+```
+
+First, the dataset is read into R.
+```{r}
+df <- read.csv("patent_drawing data.csv")
+```
+
+The structure of the dataset is examined. There are 8,156 rows and 3 columns, and the descriptions are included in the `text` column.
+```{r}
+str(df)
+```
+
+There are 8,156 unique description identifiers. This is the same as the total number of descriptions, meaning there are no duplicate descriptions.
+```{r}
+length(unique(df$uuid))
+```
+
+There are 1,096 unique patent identifiers, meaning 1,096 patents are represented across these drawing descriptions. On average, each patent has about `r round((8156 / 1096), 1)` drawing descriptions.
+```{r}
+length(unique(df$patent_id))
+```
+
+There are no missing values across the entire dataset.
+```{r}
+sum(is.na(df))
+```
+
+To standardize and clean the text descriptions, they are changed to entirely lower case letters and all leading and trailing blanks are removed.
+```{r}
+df$text2 <- str_trim(str_to_lower(df$text))
+```
+
+`r sum(str_detect(df$text2, pattern = regex(".*(embod).*")))` descriptions total include the stem "embod-".
+```{r}
+sum(str_detect(df$text2, pattern = regex(".*(embod).*")))
+```
+
+`r sum(str_detect(df$text2, pattern = regex(".*(embod).*(invention).*")))` descriptions total include the stem "embod-" and have the word "invention" occur anywhere after the "embod-" stem. 
+```{r}
+sum(str_detect(df$text2, pattern = regex(".*(embod).*(invention).*")))
+```
