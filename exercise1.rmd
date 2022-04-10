@@ -1,0 +1,118 @@
+---
+title: "Exercise 1"
+author: "Alec Becker"
+date: "`r Sys.Date()`"
+output: 
+    html_document:
+        toc: true
+        toc_float: true
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+### Load libraries
+```{r}
+library(caret)
+library(ranger)
+library(ROCit)
+library(knitr)
+```
+
+### Data import and exploration
+```{r}
+gene_df <- read.csv("gene data.csv")
+```
+```{r}
+str(gene_df)
+```
+```{r}
+summary(gene_df)
+```
+```{r}
+sum(is.na(gene_df))
+```
+```{r}
+gene_df$Class <- as.factor(ifelse(gene_df$Class == 1, "Pos", "Neg"))
+table(gene_df$Class)
+```
+
+### Split data
+```{r}
+set.seed(42)
+in_training <- createDataPartition(gene_df$Class, p = 0.8, list = FALSE)
+train <- gene_df[in_training, ]
+test <- gene_df[-in_training, ]
+```
+
+### Logistic regression model
+```{r}
+model1 <- glm(Class ~ ., data = train, family = "binomial")
+```
+
+```{r}
+pred_prob1 <- predict(model1, test, type = "response")
+logistic_auc <- rocit(pred_prob1, test$Class)$AUC
+```
+
+### Random forest model 1
+```{r}
+tune_control1 <- trainControl(method = "cv", number = 5,
+                             allowParallel = TRUE, classProbs = TRUE,
+                             summaryFunction = twoClassSummary)
+tune_grid1 <- expand.grid(.mtry = sqrt(ncol(train)),
+                         .splitrule = "gini",
+                         .min.node.size = 1)
+
+set.seed(42)
+model2 <- train(Class ~ .,
+                data = train,
+                method = "ranger",
+                num.trees = 100,
+                metric = "ROC",
+                trControl = tune_control1,
+                tuneGrid = tune_grid1,
+                num.threads = 5)
+```
+
+```{r}
+pred_prob2 <- predict(model2, test, type = "prob")$Pos
+rf1_auc <- rocit(pred_prob2, test$Class)$AUC
+```
+
+### Random forest model 2 (with upsampling)
+```{r}
+tune_control2 <- trainControl(method = "cv", number = 5,
+                              sampling = "up", allowParallel = TRUE,
+                              classProbs = TRUE,
+                              summaryFunction = twoClassSummary)
+tune_grid2 <- expand.grid(.mtry = sqrt(ncol(train)),
+                         .splitrule = "gini",
+                         .min.node.size = 1)
+
+set.seed(42)
+model3 <- train(Class ~ .,
+                data = train,
+                method = "ranger",
+                num.trees = 100,
+                metric = "ROC",
+                trControl = tune_control2,
+                tuneGrid = tune_grid2,
+                num.threads = 5)
+```
+
+```{r}
+pred_prob3 <- predict(model3, test, type = "prob")$Pos
+rf2_auc <- rocit(pred_prob3, test$Class)$AUC
+```
+
+### Model metrics
+```{r}
+results <- data.frame(logistic = logistic_auc,
+                      rf1 = rf1_auc,
+                      rf2 = rf2_auc,
+                      row.names = "AUC")
+
+kable(results)
+```
