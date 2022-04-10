@@ -1,0 +1,38 @@
+---
+title: "Exercise 2"
+author: "Alec Becker"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+This file imports the `get_mod_hamming()` function I wrote and passes three test cases to ensure the function is working properly. This function implements a modified version of the [Hamming distance algorithm](https://en.wikipedia.org/wiki/Hamming_distance).
+
+My function returns both the raw total Hamming distance as `dist` and a distance score that is normalized (`dist_norm`) by the number of characters in the strings being compared (i.e., total Hamming distance / number of characters).
+
+The function is imported below.
+
+```{r}
+source("hamming_dist.r")
+```
+
+The first test case is passed below. The total distance score is `r get_mod_hamming("data Science", "Data Sciency")$dist` and the normalized distance score is `r get_mod_hamming("data Science", "Data Sciency")$dist_norm`.
+
+```{r}
+get_mod_hamming("data Science", "Data Sciency")
+```
+
+The second test case is passed below. The total distance score is `r get_mod_hamming("organizing", "orGanising")$dist` and the normalized distance score is `r get_mod_hamming("organizing", "orGanising")$dist_norm`.
+```{r}
+get_mod_hamming("organizing", "orGanising")
+```
+
+The third test case is passed below. The total distance score is `r get_mod_hamming("AGPRklafsdyweIllIIgEnXuTggzF", "AgpRkliFZdiweIllIIgENXUTygSF")$dist` and the normalized distance score is `r get_mod_hamming("AGPRklafsdyweIllIIgEnXuTggzF", "AgpRkliFZdiweIllIIgENXUTygSF")$dist_norm`.
+
+```{r}
+get_mod_hamming("AGPRklafsdyweIllIIgEnXuTggzF", "AgpRkliFZdiweIllIIgENXUTygSF")
+```
+
+The standard Hamming distance algorithm could be useful when comparing each string in a given set of strings with an expected value. For example, a set of strings could be uploaded or imported
+from one storage space to another. If it were possible that some of the strings could be corrupted and changed during the transfer process, calculating the Hamming distance between
+each individual string and its expected value could be useful. In this scenario, strings with Hamming distances greater than 0 could be flagged and strings with the highest Hamming distances might
+warrant the most investigation.
