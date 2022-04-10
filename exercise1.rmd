@@ -12,6 +12,13 @@ output:
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
+### Introduction
+
+The goal of this analysis is to develop and evaluate three classification models for a rare genetic mutation. Given that the mutation is rare,
+AUROC (or AUC) will be used to measure model performance. AUROC measures the discrimination ability of a model and can paint an accurate picture of performance for models
+trained on imbalanced datasets, such as datasets in which the target outcome is rare.
+
+
 ### Load libraries
 ```{r}
 library(caret)
@@ -21,24 +28,37 @@ library(knitr)
 ```
 
 ### Data import and exploration
+
+First, the CSV dataset is read into R as a dataframe.
 ```{r}
 gene_df <- read.csv("gene data.csv")
 ```
+
+The dataset is passed to `str()` in order understand the structure of the data, including the number of columns and rows, column names, column data types, and a few example observations for each column.
 ```{r}
 str(gene_df)
 ```
+
+The dataset is then passed to `summary()` to get descriptive statistics for all columns. Note that `Class` is numeric and will be need to be converted into a factor variable.
 ```{r}
 summary(gene_df)
 ```
+
+The dataset is checked for missingness and no missing values are found. This means all observations can be kept and imputation is not necessary.
+
 ```{r}
 sum(is.na(gene_df))
 ```
+
+`Class` is converted to a factor and tabulated. It is clear that the genetic mutation is rare and thus infrequent in the dataset.
 ```{r}
 gene_df$Class <- as.factor(ifelse(gene_df$Class == 1, "Pos", "Neg"))
 table(gene_df$Class)
 ```
 
 ### Split data
+
+To prepare for modeling, the dataset is split into a train and test set using an 80/20 split.
 ```{r}
 set.seed(42)
 in_training <- createDataPartition(gene_df$Class, p = 0.8, list = FALSE)
@@ -47,17 +67,24 @@ test <- gene_df[-in_training, ]
 ```
 
 ### Logistic regression model
+
+The first classifier fit is a simple logistic regression model.
 ```{r}
 model1 <- glm(Class ~ ., data = train, family = "binomial")
 ```
 
+The AUROC of the logistic regression model is `r round(rocit(predict(model1, test, type = "response"), test$Class)$AUC, 3)`, indicating strong model performance. The model is able to discriminate effectively 
+between positive and negative values for the outcome.
 ```{r}
 pred_prob1 <- predict(model1, test, type = "response")
 logistic_auc <- rocit(pred_prob1, test$Class)$AUC
+round(logistic_auc, 3)
 ```
 
 ### Random forest model 1
-```{r}
+
+The second model fit is a random forest model using `caret` and the `ranger` package. 
+```{r, results = "hide"}
 tune_control1 <- trainControl(method = "cv", number = 5,
                              allowParallel = TRUE, classProbs = TRUE,
                              summaryFunction = twoClassSummary)
@@ -76,13 +103,19 @@ model2 <- train(Class ~ .,
                 num.threads = 5)
 ```
 
+This first random forest model has an AUROC of `r round(rocit(predict(model2, test, type = "prob")$Pos, test$Class)$AUC, 3)`. This also indicates strong performance, but is slightly worse performance than
+the logistic regression model.
 ```{r}
 pred_prob2 <- predict(model2, test, type = "prob")$Pos
 rf1_auc <- rocit(pred_prob2, test$Class)$AUC
+round(rf1_auc, 3)
 ```
 
 ### Random forest model 2 (with upsampling)
-```{r}
+
+Finally, to improve the performance of the random forest model, a second random forest model is fit with upsampling of observations that have a positive value for the outcome. Upsampling should
+allow the model to learn the characteristics and patterns associated with having the genetic mutation more effectively.
+```{r, results = "hide"}
 tune_control2 <- trainControl(method = "cv", number = 5,
                               sampling = "up", allowParallel = TRUE,
                               classProbs = TRUE,
@@ -102,17 +135,23 @@ model3 <- train(Class ~ .,
                 num.threads = 5)
 ```
 
+The random forest model with upsampling has an AUROC of `r round(rocit(predict(model3, test, type = "prob")$Pos, test$Class)$AUC, 3)`. This is an improvement over the baseline random forest model, but still
+slightly worse than the logistic regression model.
 ```{r}
 pred_prob3 <- predict(model3, test, type = "prob")$Pos
 rf2_auc <- rocit(pred_prob3, test$Class)$AUC
+round(rf2_auc, 3)
 ```
 
 ### Model metrics
+
+The AUROC for all three models are compared below. While using upsampling improved the performance of the random forest model, the logistic regression model performed best with an AUROC of
+**`r round(logistic_auc, 3)`**. If this performance were acceptable for a real use case, the model could potentially be put into production.
 ```{r}
-results <- data.frame(logistic = logistic_auc,
-                      rf1 = rf1_auc,
-                      rf2 = rf2_auc,
-                      row.names = "AUC")
+results <- data.frame(logistic = round(logistic_auc, 3),
+                      rf1 = round(rf1_auc, 3),
+                      rf2 = round(rf2_auc, 3),
+                      row.names = "AUROC")
 
 kable(results)
 ```

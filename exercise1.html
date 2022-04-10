@@ -11,7 +11,7 @@
 
 <meta name="author" content="Alec Becker" />
 
-<meta name="date" content="2022-04-09" />
+<meta name="date" content="2022-04-10" />
 
 <title>Exercise 1</title>
 
@@ -1512,11 +1512,15 @@ div.tocify {
 
 <h1 class="title toc-ignore">Exercise 1</h1>
 <h4 class="author">Alec Becker</h4>
-<h4 class="date">2022-04-09</h4>
+<h4 class="date">2022-04-10</h4>
 
 </div>
 
 
+<div id="introduction" class="section level3">
+<h3>Introduction</h3>
+<p>The goal of this analysis is to develop and evaluate three classification models for a rare genetic mutation. Given that the mutation is rare, AUROC (or AUC) will be used to measure model performance. AUROC measures the discrimination ability of a model and can paint an accurate picture of performance for models trained on imbalanced datasets, such as datasets in which the target outcome is rare.</p>
+</div>
 <div id="load-libraries" class="section level3">
 <h3>Load libraries</h3>
 <pre class="r"><code>library(caret)
@@ -1526,7 +1530,9 @@ library(knitr)</code></pre>
 </div>
 <div id="data-import-and-exploration" class="section level3">
 <h3>Data import and exploration</h3>
+<p>First, the CSV dataset is read into R as a dataframe.</p>
 <pre class="r"><code>gene_df &lt;- read.csv(&quot;gene data.csv&quot;)</code></pre>
+<p>The dataset is passed to <code>str()</code> in order understand the structure of the data, including the number of columns and rows, column names, column data types, and a few example observations for each column.</p>
 <pre class="r"><code>str(gene_df)</code></pre>
 <pre><code>## &#39;data.frame&#39;:    284807 obs. of  29 variables:
 ##  $ V1   : num  -1.36 1.192 -1.358 -0.966 -1.158 ...
@@ -1558,6 +1564,7 @@ library(knitr)</code></pre>
 ##  $ V27  : num  0.13356 -0.00898 -0.05535 0.06272 0.21942 ...
 ##  $ V28  : num  -0.0211 0.0147 -0.0598 0.0615 0.2152 ...
 ##  $ Class: int  0 0 0 0 0 0 0 0 0 0 ...</code></pre>
+<p>The dataset is then passed to <code>summary()</code> to get descriptive statistics for all columns. Note that <code>Class</code> is numeric and will be need to be converted into a factor variable.</p>
 <pre class="r"><code>summary(gene_df)</code></pre>
 <pre><code>##        V1                  V2                  V3                 V4          
 ##  Min.   :-56.40751   Min.   :-72.71573   Min.   :-48.3256   Min.   :-5.68317  
@@ -1615,8 +1622,10 @@ library(knitr)</code></pre>
 ##  Mean   :  0.000000   Mean   :  0.00000   Mean   :0.001728  
 ##  3rd Qu.:  0.091045   3rd Qu.:  0.07828   3rd Qu.:0.000000  
 ##  Max.   : 31.612198   Max.   : 33.84781   Max.   :1.000000</code></pre>
+<p>The dataset is checked for missingness and no missing values are found. This means all observations can be kept and imputation is not necessary.</p>
 <pre class="r"><code>sum(is.na(gene_df))</code></pre>
 <pre><code>## [1] 0</code></pre>
+<p><code>Class</code> is converted to a factor and tabulated. It is clear that the genetic mutation is rare and thus infrequent in the dataset.</p>
 <pre class="r"><code>gene_df$Class &lt;- as.factor(ifelse(gene_df$Class == 1, &quot;Pos&quot;, &quot;Neg&quot;))
 table(gene_df$Class)</code></pre>
 <pre><code>## 
@@ -1625,6 +1634,7 @@ table(gene_df$Class)</code></pre>
 </div>
 <div id="split-data" class="section level3">
 <h3>Split data</h3>
+<p>To prepare for modeling, the dataset is split into a train and test set using an 80/20 split.</p>
 <pre class="r"><code>set.seed(42)
 in_training &lt;- createDataPartition(gene_df$Class, p = 0.8, list = FALSE)
 train &lt;- gene_df[in_training, ]
@@ -1632,12 +1642,17 @@ test &lt;- gene_df[-in_training, ]</code></pre>
 </div>
 <div id="logistic-regression-model" class="section level3">
 <h3>Logistic regression model</h3>
+<p>The first classifier fit is a simple logistic regression model.</p>
 <pre class="r"><code>model1 &lt;- glm(Class ~ ., data = train, family = &quot;binomial&quot;)</code></pre>
+<p>The AUROC of the logistic regression model is 0.991, indicating strong model performance. The model is able to discriminate effectively between positive and negative values for the outcome.</p>
 <pre class="r"><code>pred_prob1 &lt;- predict(model1, test, type = &quot;response&quot;)
-logistic_auc &lt;- rocit(pred_prob1, test$Class)$AUC</code></pre>
+logistic_auc &lt;- rocit(pred_prob1, test$Class)$AUC
+round(logistic_auc, 3)</code></pre>
+<pre><code>## [1] 0.991</code></pre>
 </div>
 <div id="random-forest-model-1" class="section level3">
 <h3>Random forest model 1</h3>
+<p>The second model fit is a random forest model using <code>caret</code> and the <code>ranger</code> package.</p>
 <pre class="r"><code>tune_control1 &lt;- trainControl(method = &quot;cv&quot;, number = 5,
                              allowParallel = TRUE, classProbs = TRUE,
                              summaryFunction = twoClassSummary)
@@ -1654,12 +1669,15 @@ model2 &lt;- train(Class ~ .,
                 trControl = tune_control1,
                 tuneGrid = tune_grid1,
                 num.threads = 5)</code></pre>
-<pre><code>## Growing trees.. Progress: 69%. Estimated remaining time: 13 seconds.</code></pre>
+<p>This first random forest model has an AUROC of 0.973. This also indicates strong performance, but is slightly worse performance than the logistic regression model.</p>
 <pre class="r"><code>pred_prob2 &lt;- predict(model2, test, type = &quot;prob&quot;)$Pos
-rf1_auc &lt;- rocit(pred_prob2, test$Class)$AUC</code></pre>
+rf1_auc &lt;- rocit(pred_prob2, test$Class)$AUC
+round(rf1_auc, 3)</code></pre>
+<pre><code>## [1] 0.973</code></pre>
 </div>
 <div id="random-forest-model-2-with-upsampling" class="section level3">
 <h3>Random forest model 2 (with upsampling)</h3>
+<p>Finally, to improve the performance of the random forest model, a second random forest model is fit with upsampling of observations that have a positive value for the outcome. Upsampling should allow the model to learn the characteristics and patterns associated with having the genetic mutation more effectively.</p>
 <pre class="r"><code>tune_control2 &lt;- trainControl(method = &quot;cv&quot;, number = 5,
                               sampling = &quot;up&quot;, allowParallel = TRUE,
                               classProbs = TRUE,
@@ -1677,21 +1695,19 @@ model3 &lt;- train(Class ~ .,
                 trControl = tune_control2,
                 tuneGrid = tune_grid2,
                 num.threads = 5)</code></pre>
-<pre><code>## Growing trees.. Progress: 81%. Estimated remaining time: 7 seconds.
-## Growing trees.. Progress: 81%. Estimated remaining time: 7 seconds.
-## Growing trees.. Progress: 79%. Estimated remaining time: 8 seconds.
-## Growing trees.. Progress: 87%. Estimated remaining time: 4 seconds.
-## Growing trees.. Progress: 82%. Estimated remaining time: 6 seconds.
-## Growing trees.. Progress: 56%. Estimated remaining time: 25 seconds.</code></pre>
+<p>The random forest model with upsampling has an AUROC of 0.978. This is an improvement over the baseline random forest model, but still slightly worse than the logistic regression model.</p>
 <pre class="r"><code>pred_prob3 &lt;- predict(model3, test, type = &quot;prob&quot;)$Pos
-rf2_auc &lt;- rocit(pred_prob3, test$Class)$AUC</code></pre>
+rf2_auc &lt;- rocit(pred_prob3, test$Class)$AUC
+round(rf2_auc, 3)</code></pre>
+<pre><code>## [1] 0.978</code></pre>
 </div>
 <div id="model-metrics" class="section level3">
 <h3>Model metrics</h3>
-<pre class="r"><code>results &lt;- data.frame(logistic = logistic_auc,
-                      rf1 = rf1_auc,
-                      rf2 = rf2_auc,
-                      row.names = &quot;AUC&quot;)
+<p>The AUROC for all three models are compared below. While using upsampling improved the performance of the random forest model, the logistic regression model performed best with an AUROC of <strong>0.991</strong>. If this performance were acceptable for a real use case, the model could potentially be put into production.</p>
+<pre class="r"><code>results &lt;- data.frame(logistic = round(logistic_auc, 3),
+                      rf1 = round(rf1_auc, 3),
+                      rf2 = round(rf2_auc, 3),
+                      row.names = &quot;AUROC&quot;)
 
 kable(results)</code></pre>
 <table>
@@ -1705,10 +1721,10 @@ kable(results)</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td align="left">AUC</td>
-<td align="right">0.9910183</td>
-<td align="right">0.9734271</td>
-<td align="right">0.9784486</td>
+<td align="left">AUROC</td>
+<td align="right">0.991</td>
+<td align="right">0.973</td>
+<td align="right">0.978</td>
 </tr>
 </tbody>
 </table>
